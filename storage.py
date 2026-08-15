@@ -28,6 +28,14 @@ class Client(Base):
     channels = Column(Text, nullable=True)  # JSON string
 
 
+class ClientCredential(Base):
+    __tablename__ = 'client_credentials'
+    id = Column(String, primary_key=True)
+    client_id = Column(String, nullable=False)
+    channel = Column(String, nullable=False)
+    config = Column(Text, nullable=True)  # JSON string
+
+
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
 
@@ -141,6 +149,51 @@ def set_client_channels(client_id, channels):
     c.channels = json.dumps(channels)
     s.commit()
     out = {'id': c.id, 'name': c.name, 'channels': json.loads(c.channels or '[]')}
+    s.close()
+    return out
+
+
+def set_client_credential(client_id, channel, config_dict):
+    s = get_session()
+    c = s.query(Client).filter_by(id=client_id).first()
+    if not c:
+        s.close()
+        return None
+    existing = s.query(ClientCredential).filter_by(client_id=client_id, channel=channel).first()
+    import json as _json
+    cfg = _json.dumps(config_dict or {})
+    if existing:
+        existing.config = cfg
+    else:
+        cred = ClientCredential(id=str(uuid.uuid4()), client_id=client_id, channel=channel, config=cfg)
+        s.add(cred)
+    s.commit()
+    # return saved config
+    saved = s.query(ClientCredential).filter_by(client_id=client_id, channel=channel).first()
+    out = {'client_id': saved.client_id, 'channel': saved.channel, 'config': _json.loads(saved.config or '{}')}
+    s.close()
+    return out
+
+
+def get_client_credential(client_id, channel):
+    s = get_session()
+    cred = s.query(ClientCredential).filter_by(client_id=client_id, channel=channel).first()
+    if not cred:
+        s.close()
+        return None
+    import json as _json
+    out = {'client_id': cred.client_id, 'channel': cred.channel, 'config': _json.loads(cred.config or '{}')}
+    s.close()
+    return out
+
+
+def list_client_credentials(client_id):
+    s = get_session()
+    rows = s.query(ClientCredential).filter_by(client_id=client_id).all()
+    import json as _json
+    out = []
+    for r in rows:
+        out.append({'channel': r.channel, 'config': _json.loads(r.config or '{}')})
     s.close()
     return out
 

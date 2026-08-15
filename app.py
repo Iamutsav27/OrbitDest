@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from storage import create_superadmin_if_missing, authenticate_user, create_client, list_clients, set_client_channels, get_client_channels, register_client_user, find_user_by_token
+from storage import set_client_credential, get_client_credential, list_client_credentials
 
 app = Flask(__name__)
 
@@ -127,6 +128,38 @@ def client_register(client_id):
     if res == 'taken':
         return jsonify(error='username taken'), 400
     return jsonify(id=res['id'], token=res['token'])
+
+
+@app.route('/clients/<client_id>/credentials', methods=['GET'])
+@require_superadmin
+def list_credentials(client_id):
+    creds = list_client_credentials(client_id)
+    if creds is None:
+        return jsonify(error='client not found'), 404
+    return jsonify(credentials=creds)
+
+
+@app.route('/clients/<client_id>/credentials/<channel>', methods=['GET'])
+@require_superadmin
+def get_credential(client_id, channel):
+    cred = get_client_credential(client_id, channel)
+    if cred is None:
+        return jsonify(error='not found'), 404
+    return jsonify(credential=cred)
+
+
+@app.route('/clients/<client_id>/credentials', methods=['POST'])
+@require_superadmin
+def set_credential(client_id):
+    body = request.get_json(silent=True) or {}
+    channel = body.get('channel')
+    config = body.get('config')
+    if not channel or not isinstance(config, dict):
+        return jsonify(error='channel and config(dict) required'), 400
+    saved = set_client_credential(client_id, channel, config)
+    if saved is None:
+        return jsonify(error='client not found'), 404
+    return jsonify(credential=saved)
 
 
 if __name__ == '__main__':

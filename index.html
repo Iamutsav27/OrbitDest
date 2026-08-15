@@ -75,6 +75,28 @@
               <div id="channels-status" style="margin-left:8px;color:var(--muted)">-</div>
             </div>
           </div>
+          <div style="margin-top:12px">
+            <h3>Channel Credentials</h3>
+            <label>Select channel</label>
+            <div class="row">
+              <select id="cred-channel-select">
+                <option value="">-- choose channel --</option>
+                <option value="email">email</option>
+                <option value="sms">sms</option>
+                <option value="whatsapp">whatsapp</option>
+                <option value="telegram">telegram</option>
+                <option value="facebook">facebook</option>
+                <option value="webchat">webchat</option>
+              </select>
+              <button id="btn-load-cred">Load</button>
+            </div>
+            <label>Config (JSON)</label>
+            <textarea id="cred-config" style="width:100%;height:120px;font-family:monospace">{}</textarea>
+            <div class="row" style="margin-top:8px">
+              <button id="btn-save-cred">Save Credential</button>
+              <div id="cred-status" style="margin-left:8px;color:var(--muted)">-</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -222,6 +244,31 @@
 
       // load client select on startup
       refreshClientSelect()
+
+      // Credentials UI handlers
+      $('btn-load-cred').onclick = async ()=>{
+        const clientId = $('client-select').value
+        const channel = $('cred-channel-select').value
+        if(!clientId || !channel){ $('cred-status').textContent = 'select client and channel'; return }
+        const r = await call(`/clients/${clientId}/credentials/${channel}`, { headers: adminHeaders() })
+        if(r.ok && r.body && r.body.credential){
+          $('cred-config').value = JSON.stringify(r.body.credential.config || {}, null, 2)
+          $('cred-status').textContent = 'loaded'
+        } else {
+          $('cred-config').value = '{}'
+          $('cred-status').textContent = r.body?.error || r.error || 'not found'
+        }
+      }
+
+      $('btn-save-cred').onclick = async ()=>{
+        const clientId = $('client-select').value
+        const channel = $('cred-channel-select').value
+        if(!clientId || !channel){ $('cred-status').textContent = 'select client and channel'; return }
+        let cfg
+        try{ cfg = JSON.parse($('cred-config').value) } catch(e){ $('cred-status').textContent = 'invalid JSON'; return }
+        const r = await call(`/clients/${clientId}/credentials`, { method:'POST', headers: adminHeaders(), body: JSON.stringify({ channel, config: cfg }) })
+        if(r.ok && r.body && r.body.credential){ $('cred-status').textContent = 'saved' } else { $('cred-status').textContent = r.body?.error || r.error || 'failed' }
+      }
 
       // Client register
       $('btn-register').onclick = async ()=>{
