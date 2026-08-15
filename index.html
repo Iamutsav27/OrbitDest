@@ -43,19 +43,36 @@
       <section id="landing">
         <div style="display:flex;align-items:center;gap:18px">
           <div style="width:120px;height:120px;background:linear-gradient(135deg,#0366d6,#4f46e5);border-radius:16px;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:36px">OD</div>
-          <div>
+          <div style="flex:1">
             <h2 style="margin:0">Welcome to OrbitDesk</h2>
-            <p style="margin:6px 0;color:var(--muted)">Login as Superadmin or Client to continue. After login, you'll see dashboards and channel settings.</p>
-            <div class="row">
-              <button id="btn-show-admin-login">Superadmin Login</button>
-              <button id="btn-show-client-login">Client Login</button>
+            <p style="margin:6px 0;color:var(--muted)">Sign in with your ID and password to continue.</p>
+            <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+              <!-- channel icons -->
+              <div style="display:flex;gap:8px;align-items:center">
+                <div title="Email" style="width:40px;height:40px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center">✉️</div>
+                <div title="SMS" style="width:40px;height:40px;border-radius:8px;background:#eefcf6;display:flex;align-items:center;justify-content:center">📩</div>
+                <div title="WhatsApp" style="width:40px;height:40px;border-radius:8px;background:#e6fffa;display:flex;align-items:center;justify-content:center">🟢</div>
+                <div title="Telegram" style="width:40px;height:40px;border-radius:8px;background:#eef6ff;display:flex;align-items:center;justify-content:center">✈️</div>
+                <div title="Facebook" style="width:40px;height:40px;border-radius:8px;background:#f0f9ff;display:flex;align-items:center;justify-content:center">📘</div>
+                <div title="Webchat" style="width:40px;height:40px;border-radius:8px;background:#fff7ed;display:flex;align-items:center;justify-content:center">💬</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;max-width:420px">
+              <label style="font-size:13px;color:var(--muted)">ID</label>
+              <input id="unified-id" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee;margin-top:6px" />
+              <label style="font-size:13px;color:var(--muted);margin-top:8px;display:block">Password</label>
+              <input id="unified-password" type="password" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee;margin-top:6px" />
+              <div class="row" style="margin-top:10px">
+                <button id="btn-unified-login">Login</button>
+                <div id="unified-status" style="margin-left:8px;color:var(--muted)">-</div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       <section id="admin-login" style="display:none">
-        <h2>Superadmin</h2>
+        <h2>Superadmin (hidden)</h2>
         <label>Username</label>
         <div class="row">
           <input id="admin-username" value="superadmin" />
@@ -210,25 +227,29 @@
         if(r.ok && r.status===200){ el.textContent = 'OK'; el.className='status ok' } else { el.textContent='DOWN'; el.className='status err' }
       }
 
-      // show login forms from landing
-      $('btn-show-admin-login').onclick = ()=>{ $('landing').style.display='none'; $('admin-login').style.display='block'; }
-      $('btn-show-client-login').onclick = ()=>{ $('landing').style.display='none'; $('client-login').style.display='block'; }
-
-      // Admin login
-      $('btn-admin-login').onclick = async ()=>{
-        const username = $('admin-username').value
-        const password = $('admin-password').value
-        const r = await call('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
+      // Unified login from landing (ID + Password)
+      $('btn-unified-login').onclick = async ()=>{
+        const id = $('unified-id').value
+        const password = $('unified-password').value
+        const r = await call('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: id, password }) })
         if(r.ok && r.status===200 && r.body.token){
-          localStorage.setItem('admin_token', r.body.token)
-          $('admin-token').textContent = 'token saved'
-          // show admin dashboard
-          $('admin-login').style.display='none'
-          $('admin-dashboard').style.display='block'
-          $('admin-clients-section').style.display='block'
-          await refreshAdminSummary()
+          const role = r.body.role
+          if(role === 'superadmin'){
+            localStorage.setItem('admin_token', r.body.token)
+            $('unified-status').textContent = 'signed in as superadmin'
+            $('landing').style.display='none'
+            $('admin-dashboard').style.display='block'
+            $('admin-clients-section').style.display='block'
+            await refreshAdminSummary()
+          } else {
+            localStorage.setItem('client_token', r.body.token)
+            $('unified-status').textContent = 'signed in as client'
+            $('landing').style.display='none'
+            $('client-dashboard').style.display='block'
+            await loadClientDashboard()
+          }
         } else {
-          $('admin-token').textContent = r.body?.error || r.error || 'login failed'
+          $('unified-status').textContent = r.body?.error || r.error || 'login failed'
         }
       }
 
