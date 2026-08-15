@@ -27,7 +27,10 @@
   <body>
     <div class="container">
       <header>
-        <h1>Flask API demo</h1>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:48px;height:48px;background:linear-gradient(135deg,#0366d6,#4f46e5);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px">OD</div>
+          <h1 style="margin:0">OrbitDesk</h1>
+        </div>
         <div class="controls">
           <label style="font-size:13px;color:var(--muted)">API URL</label>
           <input id="api-url" type="text" value="http://localhost:5000" style="width:260px" />
@@ -36,8 +39,22 @@
         </div>
       </header>
 
-      <!-- Admin auth -->
-      <section>
+      <!-- Landing / Login -->
+      <section id="landing">
+        <div style="display:flex;align-items:center;gap:18px">
+          <div style="width:120px;height:120px;background:linear-gradient(135deg,#0366d6,#4f46e5);border-radius:16px;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:36px">OD</div>
+          <div>
+            <h2 style="margin:0">Welcome to OrbitDesk</h2>
+            <p style="margin:6px 0;color:var(--muted)">Login as Superadmin or Client to continue. After login, you'll see dashboards and channel settings.</p>
+            <div class="row">
+              <button id="btn-show-admin-login">Superadmin Login</button>
+              <button id="btn-show-client-login">Client Login</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin-login" style="display:none">
         <h2>Superadmin</h2>
         <label>Username</label>
         <div class="row">
@@ -49,7 +66,18 @@
         <div style="margin-top:8px;color:var(--muted);font-size:13px">After login, token is stored in localStorage and used for admin requests.</div>
       </section>
 
-      <section>
+      <section id="admin-dashboard" style="display:none">
+        <h2>Superadmin Dashboard</h2>
+        <div class="row">
+          <div><strong>Clients:</strong> <span id="admin-clients-count">-</span></div>
+          <div style="margin-left:18px"><strong>Total channels:</strong> <span id="admin-channels-count">-</span></div>
+        </div>
+        <div style="margin-top:12px">
+          <button id="btn-admin-refresh-summary">Refresh</button>
+        </div>
+      </section>
+
+      <section id="admin-clients-section" style="display:none">
         <h2>Admin - Clients</h2>
         <div class="row">
           <input id="new-client-name" placeholder="Client name" />
@@ -100,7 +128,7 @@
         </div>
       </section>
 
-      <section>
+      <section id="client-login" style="display:none">
         <h2>Client - Register / Login</h2>
         <label>Client ID (from Admin clients list)</label>
         <div class="row">
@@ -120,6 +148,14 @@
           <button id="btn-login">Login</button>
           <div id="client-token" style="margin-left:8px;color:var(--muted)">-</div>
         </div>
+      </section>
+
+      <section id="client-dashboard" style="display:none">
+        <h2>Client Dashboard</h2>
+        <div><strong>Client:</strong> <span id="client-name">-</span></div>
+        <div style="margin-top:8px"><strong>Channels:</strong></div>
+        <ul id="client-channels"></ul>
+        <div style="margin-top:10px;color:var(--muted);font-size:13px">Use the "Configure" button beside each channel to edit credentials.</div>
       </section>
 
       <section>
@@ -174,6 +210,10 @@
         if(r.ok && r.status===200){ el.textContent = 'OK'; el.className='status ok' } else { el.textContent='DOWN'; el.className='status err' }
       }
 
+      // show login forms from landing
+      $('btn-show-admin-login').onclick = ()=>{ $('landing').style.display='none'; $('admin-login').style.display='block'; }
+      $('btn-show-client-login').onclick = ()=>{ $('landing').style.display='none'; $('client-login').style.display='block'; }
+
       // Admin login
       $('btn-admin-login').onclick = async ()=>{
         const username = $('admin-username').value
@@ -182,6 +222,11 @@
         if(r.ok && r.status===200 && r.body.token){
           localStorage.setItem('admin_token', r.body.token)
           $('admin-token').textContent = 'token saved'
+          // show admin dashboard
+          $('admin-login').style.display='none'
+          $('admin-dashboard').style.display='block'
+          $('admin-clients-section').style.display='block'
+          await refreshAdminSummary()
         } else {
           $('admin-token').textContent = r.body?.error || r.error || 'login failed'
         }
@@ -205,6 +250,21 @@
         $('clients-list').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
         await refreshClientSelect()
       }
+
+      async function refreshAdminSummary(){
+        const r = await call('/clients', { headers: adminHeaders() })
+        if(!r.ok || !r.body) return
+        const clients = r.body.clients || []
+        $('admin-clients-count').textContent = clients.length
+        // count total channels
+        let total = 0
+        clients.forEach(c=> total += (c.channels || []).length)
+        $('admin-channels-count').textContent = total
+        $('clients-list').textContent = JSON.stringify(clients, null, 2)
+        await refreshClientSelect()
+      }
+
+      $('btn-admin-refresh-summary').onclick = refreshAdminSummary
 
       async function refreshClientSelect(){
         const r = await call('/clients', { headers: adminHeaders() })
@@ -292,8 +352,43 @@
         if(r.ok && r.status===200){
           localStorage.setItem('client_token', r.body.token)
           $('client-token').textContent = 'login token saved'
+          // show client dashboard
+          $('client-login').style.display='none'
+          $('client-dashboard').style.display='block'
+          await loadClientDashboard()
         } else {
           $('client-token').textContent = r.body?.error || r.error || 'login failed'
+        }
+      }
+
+      function clientHeaders(){ const t = localStorage.getItem('client_token'); return t ? { 'Authorization':'Bearer '+t, 'Content-Type':'application/json'} : {'Content-Type':'application/json'} }
+
+      async function loadClientDashboard(){
+        const me = await call('/me', { headers: clientHeaders() })
+        if(!me.ok || !me.body) return
+        const clientId = me.body.client_id
+        if(!clientId){ document.getElementById('client-name').textContent = me.body.username; return }
+        const info = await call(`/clients/${clientId}/info`, { headers: clientHeaders() })
+        if(info.ok && info.body){
+          document.getElementById('client-name').textContent = me.body.username + ' (' + clientId + ')'
+          const ul = document.getElementById('client-channels')
+          ul.innerHTML = ''
+          (info.body.channels || []).forEach(ch=>{
+            const li = document.createElement('li')
+            li.textContent = ch + ' '
+            const btn = document.createElement('button')
+            btn.textContent = 'Configure'
+            btn.onclick = async ()=>{
+              // load credential into editor and allow saving via client token
+              const r = await call(`/clients/${clientId}/credentials/${ch}`, { headers: clientHeaders() })
+              if(r.ok && r.body && r.body.credential){ $('cred-config').value = JSON.stringify(r.body.credential.config||{}, null,2); $('cred-status').textContent='loaded' }
+              else { $('cred-config').value='{}'; $('cred-status').textContent = r.body?.error || r.error || 'not found' }
+              // show admin clients section to keep editor visible
+              $('admin-clients-section').style.display='block'
+            }
+            li.appendChild(btn)
+            ul.appendChild(li)
+          })
         }
       }
 

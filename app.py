@@ -131,8 +131,17 @@ def client_register(client_id):
 
 
 @app.route('/clients/<client_id>/credentials', methods=['GET'])
-@require_superadmin
 def list_credentials(client_id):
+    # allow superadmin or client owner
+    auth = request.headers.get('Authorization', '')
+    user = None
+    if auth.startswith('Bearer '):
+        token = auth.split(None, 1)[1]
+        user = find_user_by_token(token)
+    if not user:
+        return jsonify(error='unauthorized'), 401
+    if user.role != 'superadmin' and user.client_id != client_id:
+        return jsonify(error='forbidden'), 403
     creds = list_client_credentials(client_id)
     if creds is None:
         return jsonify(error='client not found'), 404
@@ -140,8 +149,16 @@ def list_credentials(client_id):
 
 
 @app.route('/clients/<client_id>/credentials/<channel>', methods=['GET'])
-@require_superadmin
 def get_credential(client_id, channel):
+    auth = request.headers.get('Authorization', '')
+    user = None
+    if auth.startswith('Bearer '):
+        token = auth.split(None, 1)[1]
+        user = find_user_by_token(token)
+    if not user:
+        return jsonify(error='unauthorized'), 401
+    if user.role != 'superadmin' and user.client_id != client_id:
+        return jsonify(error='forbidden'), 403
     cred = get_client_credential(client_id, channel)
     if cred is None:
         return jsonify(error='not found'), 404
@@ -149,8 +166,16 @@ def get_credential(client_id, channel):
 
 
 @app.route('/clients/<client_id>/credentials', methods=['POST'])
-@require_superadmin
 def set_credential(client_id):
+    auth = request.headers.get('Authorization', '')
+    user = None
+    if auth.startswith('Bearer '):
+        token = auth.split(None, 1)[1]
+        user = find_user_by_token(token)
+    if not user:
+        return jsonify(error='unauthorized'), 401
+    if user.role != 'superadmin' and user.client_id != client_id:
+        return jsonify(error='forbidden'), 403
     body = request.get_json(silent=True) or {}
     channel = body.get('channel')
     config = body.get('config')
@@ -160,6 +185,38 @@ def set_credential(client_id):
     if saved is None:
         return jsonify(error='client not found'), 404
     return jsonify(credential=saved)
+
+
+@app.route('/me', methods=['GET'])
+def me():
+    auth = request.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        return jsonify(error='unauthorized'), 401
+    token = auth.split(None, 1)[1]
+    user = find_user_by_token(token)
+    if not user:
+        return jsonify(error='unauthorized'), 401
+    return jsonify(id=user.id, username=user.username, role=user.role, client_id=user.client_id)
+
+
+@app.route('/clients/<client_id>/info', methods=['GET'])
+def client_info(client_id):
+    # allow superadmin or the client owner
+    auth = request.headers.get('Authorization', '')
+    user = None
+    if auth.startswith('Bearer '):
+        token = auth.split(None, 1)[1]
+        user = find_user_by_token(token)
+    if not user:
+        return jsonify(error='unauthorized'), 401
+    if user.role != 'superadmin' and user.client_id != client_id:
+        return jsonify(error='forbidden'), 403
+    # fetch client
+    from storage import get_client_channels
+    channels = get_client_channels(client_id)
+    if channels is None:
+        return jsonify(error='client not found'), 404
+    return jsonify(client_id=client_id, channels=channels)
 
 
 if __name__ == '__main__':
