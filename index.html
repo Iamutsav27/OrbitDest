@@ -1,0 +1,119 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Flask API demo</title>
+    <style>
+      :root{ --bg:#fbfcfd; --muted:#6b7280; --panel:#f6f8fa; --accent:#0366d6 }
+      body{ font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:var(--bg); color:#111827; padding:28px }
+      .container{ max-width:900px; margin:0 auto }
+      header{ display:flex; align-items:center; justify-content:space-between }
+      h1{ margin:0; font-size:24px }
+      .controls{ display:flex; gap:8px; align-items:center }
+      input[type=text]{ padding:8px 10px; border:1px solid #e6e9ee; border-radius:6px }
+      button{ padding:8px 10px; border-radius:6px; border:1px solid #d1d5db; background:white; cursor:pointer }
+      section{ background:white; padding:16px; border-radius:8px; box-shadow:0 1px 0 rgba(0,0,0,0.03); margin-top:18px }
+      label{ display:block; margin-top:10px; font-size:14px; color:var(--muted) }
+      .row{ display:flex; gap:10px; align-items:center; margin-top:8px }
+      pre{ background:var(--panel); padding:12px; border-radius:6px; overflow:auto; white-space:pre-wrap }
+      .status{ font-weight:600 }
+      .status.ok{ color:green }
+      .status.err{ color:#b91c1c }
+      footer{ margin-top:20px; color:var(--muted); font-size:13px }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Flask API demo</h1>
+        <div class="controls">
+          <label style="font-size:13px;color:var(--muted)">API URL</label>
+          <input id="api-url" type="text" value="http://localhost:5000" style="width:220px" />
+          <button id="btn-ping">Ping</button>
+          <div id="health-ind" class="status">—</div>
+        </div>
+      </header>
+
+      <section>
+        <h2>/health</h2>
+        <div class="row">
+          <button id="btn-health">Call /health</button>
+          <div id="out-health">-</div>
+        </div>
+        <pre id="raw-health">-</pre>
+      </section>
+
+      <section>
+        <h2>/echo</h2>
+        <label>Message</label>
+        <div class="row">
+          <input id="echo-msg" value="hello world" style="flex:1" />
+          <button id="btn-echo">Call /echo</button>
+        </div>
+        <pre id="out-echo">-</pre>
+      </section>
+
+      <section>
+        <h2>/sum</h2>
+        <label>Numbers (comma-separated)</label>
+        <div class="row">
+          <input id="sum-nums" value="1,2,3" style="flex:1" />
+          <button id="btn-sum">Call /sum</button>
+        </div>
+        <pre id="out-sum">-</pre>
+      </section>
+
+      <footer>Run the Flask app with <code>python app.py</code> and ensure the API URL above matches.</footer>
+    </div>
+
+    <script>
+      const $ = id => document.getElementById(id)
+
+      function apiBase(){ return $('api-url').value.trim() || 'http://localhost:5000' }
+
+      async function call(path, opts={}){
+        const base = apiBase()
+        try{
+          const res = await fetch(base + path, opts)
+          const text = await res.text()
+          try{ return { ok: true, status: res.status, body: JSON.parse(text) } }catch(e){ return { ok: true, status: res.status, body: text } }
+        }catch(err){ return { ok:false, error: String(err) } }
+      }
+
+      async function updateHealthIndicator(){
+        const r = await call('/health')
+        const el = $('health-ind')
+        if(r.ok && r.status===200){ el.textContent = 'OK'; el.className='status ok' } else { el.textContent='DOWN'; el.className='status err' }
+      }
+
+      $('btn-ping').onclick = updateHealthIndicator
+
+      $('btn-health').onclick = async ()=>{
+        $('out-health').textContent = 'loading...'
+        const r = await call('/health')
+        if(r.ok) $('raw-health').textContent = JSON.stringify(r.body, null, 2)
+        else $('raw-health').textContent = r.error
+      }
+
+      $('btn-echo').onclick = async ()=>{
+        $('out-echo').textContent = 'loading...'
+        const msg = $('echo-msg').value
+        const r = await call('/echo', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ msg }) })
+        $('out-echo').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
+      }
+
+      $('btn-sum').onclick = async ()=>{
+        $('out-sum').textContent = 'loading...'
+        const raw = $('sum-nums').value
+        const numbers = raw.split(',').map(s=>parseFloat(s.trim())).filter(n=>!isNaN(n))
+        const r = await call('/sum', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ numbers }) })
+        $('out-sum').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
+      }
+
+      // initial check
+      updateHealthIndicator()
+    </script>
+  </body>
+</html>

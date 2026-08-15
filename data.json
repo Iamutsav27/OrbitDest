@@ -1,0 +1,21 @@
+{
+  "users": [
+    {
+      "id": "51e62b95-22b7-4e5d-ae56-e1905906d398",
+      "username": "admin",
+      "password_hash": "pbkdf2:sha256:1000000$gkFqLHNDMI8BP9pC$dc4db9a87cf3a482d60701ec13bdf0fe6737dc28a7f3c3edf86d0f0d7462b756",
+      "role": "superadmin",
+      "token": "dee7cf46-f962-4c4c-b8e9-c23762b2b63a"
+    }
+  ],
+  "clients": [
+    {
+      "id": "ccd55a44-ea92-432a-b609-e03c815fa1a2",
+      "name": "Acme Corp",
+      "channels": [
+        "whatsapp",
+        "email"
+      ]
+    }
+  ]
+}
