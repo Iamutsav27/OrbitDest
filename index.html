@@ -57,6 +57,25 @@
           <button id="btn-refresh-clients">Refresh list</button>
         </div>
         <pre id="clients-list">-</pre>
+        <div style="margin-top:12px">
+          <label>Select client to manage channels</label>
+          <div class="row">
+            <select id="client-select" style="min-width:260px"></select>
+            <button id="btn-load-channels">Load channels</button>
+          </div>
+          <div id="channels-panel" style="margin-top:12px">
+            <div><label><input type="checkbox" value="email" /> Email</label></div>
+            <div><label><input type="checkbox" value="sms" /> SMS</label></div>
+            <div><label><input type="checkbox" value="whatsapp" /> WhatsApp</label></div>
+            <div><label><input type="checkbox" value="telegram" /> Telegram</label></div>
+            <div><label><input type="checkbox" value="facebook" /> Facebook</label></div>
+            <div><label><input type="checkbox" value="webchat" /> Webchat</label></div>
+            <div class="row" style="margin-top:8px">
+              <button id="btn-save-channels">Save channels</button>
+              <div id="channels-status" style="margin-left:8px;color:var(--muted)">-</div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section>
@@ -156,12 +175,53 @@
         const name = $('new-client-name').value
         const r = await call('/clients', { method:'POST', headers: adminHeaders(), body: JSON.stringify({ name }) })
         $('clients-list').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
+        await refreshClientSelect()
       }
 
       $('btn-refresh-clients').onclick = async ()=>{
         const r = await call('/clients', { headers: adminHeaders() })
         $('clients-list').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
+        await refreshClientSelect()
       }
+
+      async function refreshClientSelect(){
+        const r = await call('/clients', { headers: adminHeaders() })
+        const sel = $('client-select')
+        sel.innerHTML = ''
+        if(r.ok && r.body && Array.isArray(r.body.clients)){
+          r.body.clients.forEach(c=>{
+            const opt = document.createElement('option')
+            opt.value = c.id
+            opt.textContent = c.name + ' (' + c.id + ')'
+            sel.appendChild(opt)
+          })
+        }
+      }
+
+      $('btn-load-channels').onclick = async ()=>{
+        const clientId = $('client-select').value
+        if(!clientId){ $('channels-status').textContent = 'select client'; return }
+        const r = await call(`/clients/${clientId}/channels`, { headers: adminHeaders() })
+        if(r.ok && r.body && Array.isArray(r.body.channels)){
+          const boxes = document.querySelectorAll('#channels-panel input[type=checkbox]')
+          boxes.forEach(b=> b.checked = r.body.channels.includes(b.value))
+          $('channels-status').textContent = 'loaded'
+        } else {
+          $('channels-status').textContent = r.body?.error || r.error || 'failed'
+        }
+      }
+
+      $('btn-save-channels').onclick = async ()=>{
+        const clientId = $('client-select').value
+        if(!clientId){ $('channels-status').textContent = 'select client'; return }
+        const boxes = document.querySelectorAll('#channels-panel input[type=checkbox]')
+        const channels = Array.from(boxes).filter(b=>b.checked).map(b=>b.value)
+        const r = await call(`/clients/${clientId}/channels`, { method:'POST', headers: adminHeaders(), body: JSON.stringify({ channels }) })
+        if(r.ok){ $('channels-status').textContent = 'saved' } else { $('channels-status').textContent = r.body?.error || r.error || 'failed' }
+      }
+
+      // load client select on startup
+      refreshClientSelect()
 
       // Client register
       $('btn-register').onclick = async ()=>{
