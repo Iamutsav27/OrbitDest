@@ -7,6 +7,10 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# remove existing SQLite DB before importing app
+import os as _os
+_os.environ['OMNI_DB'] = ':memory:'
+
 from app import app
 
 

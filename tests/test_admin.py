@@ -7,13 +7,11 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from app import app, DATA_FILE
+# remove existing SQLite DB before importing app to ensure fresh DB
+import os as _os
+_os.environ['OMNI_DB'] = ':memory:'
 
-
-def setup_function(fn):
-    # ensure a clean data file for each test
-    if os.path.exists(DATA_FILE):
-        os.remove(DATA_FILE)
+from app import app
 
 
 def test_superadmin_and_client_flow():
