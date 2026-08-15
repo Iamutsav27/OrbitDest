@@ -30,11 +30,56 @@
         <h1>Flask API demo</h1>
         <div class="controls">
           <label style="font-size:13px;color:var(--muted)">API URL</label>
-          <input id="api-url" type="text" value="http://localhost:5000" style="width:220px" />
+          <input id="api-url" type="text" value="http://localhost:5000" style="width:260px" />
           <button id="btn-ping">Ping</button>
           <div id="health-ind" class="status">—</div>
         </div>
       </header>
+
+      <!-- Admin auth -->
+      <section>
+        <h2>Superadmin</h2>
+        <label>Username</label>
+        <div class="row">
+          <input id="admin-username" value="superadmin" />
+          <input id="admin-password" type="password" value="Utsav@2709" />
+          <button id="btn-admin-login">Login</button>
+          <div id="admin-token" style="margin-left:8px;color:var(--muted)">-</div>
+        </div>
+        <div style="margin-top:8px;color:var(--muted);font-size:13px">After login, token is stored in localStorage and used for admin requests.</div>
+      </section>
+
+      <section>
+        <h2>Admin - Clients</h2>
+        <div class="row">
+          <input id="new-client-name" placeholder="Client name" />
+          <button id="btn-create-client">Create client</button>
+          <button id="btn-refresh-clients">Refresh list</button>
+        </div>
+        <pre id="clients-list">-</pre>
+      </section>
+
+      <section>
+        <h2>Client - Register / Login</h2>
+        <label>Client ID (from Admin clients list)</label>
+        <div class="row">
+          <input id="reg-client-id" placeholder="client id" />
+        </div>
+        <label>Username</label>
+        <div class="row">
+          <input id="reg-username" />
+          <input id="reg-password" type="password" />
+          <button id="btn-register">Register</button>
+        </div>
+        <div style="height:8px"></div>
+        <label>Login</label>
+        <div class="row">
+          <input id="login-username" />
+          <input id="login-password" type="password" />
+          <button id="btn-login">Login</button>
+          <div id="client-token" style="margin-left:8px;color:var(--muted)">-</div>
+        </div>
+      </section>
 
       <section>
         <h2>/health</h2>
@@ -65,7 +110,7 @@
         <pre id="out-sum">-</pre>
       </section>
 
-      <footer>Run the Flask app with <code>python app.py</code> and ensure the API URL above matches.</footer>
+      <footer>Run the Flask app with <code>python app.py</code> or `docker-compose up` and ensure the API URL above matches.</footer>
     </div>
 
     <script>
@@ -86,6 +131,63 @@
         const r = await call('/health')
         const el = $('health-ind')
         if(r.ok && r.status===200){ el.textContent = 'OK'; el.className='status ok' } else { el.textContent='DOWN'; el.className='status err' }
+      }
+
+      // Admin login
+      $('btn-admin-login').onclick = async ()=>{
+        const username = $('admin-username').value
+        const password = $('admin-password').value
+        const r = await call('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
+        if(r.ok && r.status===200 && r.body.token){
+          localStorage.setItem('admin_token', r.body.token)
+          $('admin-token').textContent = 'token saved'
+        } else {
+          $('admin-token').textContent = r.body?.error || r.error || 'login failed'
+        }
+      }
+
+      function adminHeaders(){
+        const t = localStorage.getItem('admin_token')
+        return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+      }
+
+      // Create client
+      $('btn-create-client').onclick = async ()=>{
+        const name = $('new-client-name').value
+        const r = await call('/clients', { method:'POST', headers: adminHeaders(), body: JSON.stringify({ name }) })
+        $('clients-list').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
+      }
+
+      $('btn-refresh-clients').onclick = async ()=>{
+        const r = await call('/clients', { headers: adminHeaders() })
+        $('clients-list').textContent = r.ok ? JSON.stringify(r.body, null, 2) : r.error
+      }
+
+      // Client register
+      $('btn-register').onclick = async ()=>{
+        const clientId = $('reg-client-id').value
+        const username = $('reg-username').value
+        const password = $('reg-password').value
+        const r = await call(`/clients/${clientId}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
+        if(r.ok && r.status===200){
+          $('client-token').textContent = 'registered: token saved'
+          localStorage.setItem('client_token', r.body.token)
+        } else {
+          $('client-token').textContent = r.body?.error || r.error || 'register failed'
+        }
+      }
+
+      // Client login
+      $('btn-login').onclick = async ()=>{
+        const username = $('login-username').value
+        const password = $('login-password').value
+        const r = await call('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
+        if(r.ok && r.status===200){
+          localStorage.setItem('client_token', r.body.token)
+          $('client-token').textContent = 'login token saved'
+        } else {
+          $('client-token').textContent = r.body?.error || r.error || 'login failed'
+        }
       }
 
       $('btn-ping').onclick = updateHealthIndicator
