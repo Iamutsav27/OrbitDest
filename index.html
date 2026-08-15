@@ -6,65 +6,79 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Flask API demo</title>
     <style>
-      :root{ --bg:#fbfcfd; --muted:#6b7280; --panel:#f6f8fa; --accent:#0366d6 }
-      body{ font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:var(--bg); color:#111827; padding:28px }
-      .container{ max-width:900px; margin:0 auto }
+      :root{
+        --bg:#f5f7fb; --muted:#6b7280; --panel:#ffffff; --accent:#5b67f6; --glass:rgba(255,255,255,0.6)
+      }
+      html,body{height:100%;margin:0}
+      body{ font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:linear-gradient(180deg,#f6f9ff 0%, #f5f7fb 60%); color:#0f172a }
+      .site{ max-width:1100px; margin:28px auto; padding:0 20px }
       header{ display:flex; align-items:center; justify-content:space-between }
-      h1{ margin:0; font-size:24px }
-      .controls{ display:flex; gap:8px; align-items:center }
-      input[type=text]{ padding:8px 10px; border:1px solid #e6e9ee; border-radius:6px }
-      button{ padding:8px 10px; border-radius:6px; border:1px solid #d1d5db; background:white; cursor:pointer }
-      section{ background:white; padding:16px; border-radius:8px; box-shadow:0 1px 0 rgba(0,0,0,0.03); margin-top:18px }
-      label{ display:block; margin-top:10px; font-size:14px; color:var(--muted) }
-      .row{ display:flex; gap:10px; align-items:center; margin-top:8px }
-      pre{ background:var(--panel); padding:12px; border-radius:6px; overflow:auto; white-space:pre-wrap }
-      .status{ font-weight:600 }
-      .status.ok{ color:green }
-      .status.err{ color:#b91c1c }
-      footer{ margin-top:20px; color:var(--muted); font-size:13px }
+      .brand{ display:flex; align-items:center; gap:12px }
+      .logo-badge{ width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#5b67f6,#2fb6f0);display:flex;align-items:center;justify-content:center;color:white;font-weight:700 }
+      .hero{ background:transparent;margin-top:18px;padding:36px;border-radius:14px }
+      .hero-card{ background:var(--panel); border-radius:14px; padding:28px; box-shadow:0 8px 30px rgba(15,23,42,0.06); display:flex; gap:24px; align-items:center }
+      .hero-left{ flex:0 0 140px }
+      .hero-left .logo-large{ width:120px;height:120px;border-radius:16px;background:linear-gradient(135deg,#5b67f6,#2fb6f0);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:34px }
+      .hero-right{ flex:1 }
+      .hero-right h2{ margin:0 0 8px 0; font-size:22px }
+      .muted{ color:var(--muted); font-size:14px }
+      .icons-row{ display:flex; gap:10px; margin-top:12px }
+      .icon-pill{ width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px }
+      .login-card{ margin-top:18px; max-width:420px; }
+      .input{ width:100%; padding:12px 14px; border-radius:10px; border:1px solid #e6e9ee; margin-top:8px; box-sizing:border-box }
+      .btn{ padding:10px 14px; border-radius:10px; border:0; background:var(--accent); color:white; cursor:pointer; font-weight:600 }
+      .ghost{ background:transparent; color:var(--accent); border:1px solid rgba(91,103,246,0.12) }
+      /* center modal-like login for small screens */
+      .centered{ display:flex; align-items:center; justify-content:center; min-height:60vh }
+      .hidden{ display:none }
+      .dashboard{ margin-top:18px }
+      footer{ margin-top:32px; color:var(--muted); font-size:13px }
     </style>
   </head>
   <body>
     <div class="container">
       <header>
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="width:48px;height:48px;background:linear-gradient(135deg,#0366d6,#4f46e5);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px">OD</div>
-          <h1 style="margin:0">OrbitDesk</h1>
+        <div class="brand">
+          <div class="logo-badge">OD</div>
+          <div style="font-weight:700">OrbitDesk</div>
         </div>
         <div class="controls">
-          <label style="font-size:13px;color:var(--muted)">API URL</label>
-          <input id="api-url" type="text" value="http://localhost:5000" style="width:260px" />
-          <button id="btn-ping">Ping</button>
-          <div id="health-ind" class="status">—</div>
+          <label style="font-size:13px;color:var(--muted);margin-right:8px">API URL</label>
+          <input id="api-url" type="text" value="http://localhost:5000" style="width:260px;padding:8px;border-radius:8px;border:1px solid #e6e9ee" />
+          <button id="btn-ping" class="ghost" style="margin-left:8px">Ping</button>
+          <div id="health-ind" class="status" style="margin-left:8px">—</div>
         </div>
       </header>
 
       <!-- Landing / Login -->
       <section id="landing">
-        <div style="display:flex;align-items:center;gap:18px">
-          <div style="width:120px;height:120px;background:linear-gradient(135deg,#0366d6,#4f46e5);border-radius:16px;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:36px">OD</div>
-          <div style="flex:1">
-            <h2 style="margin:0">Welcome to OrbitDesk</h2>
-            <p style="margin:6px 0;color:var(--muted)">Sign in with your ID and password to continue.</p>
-            <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
-              <!-- channel icons -->
-              <div style="display:flex;gap:8px;align-items:center">
-                <div title="Email" style="width:40px;height:40px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center">✉️</div>
-                <div title="SMS" style="width:40px;height:40px;border-radius:8px;background:#eefcf6;display:flex;align-items:center;justify-content:center">📩</div>
-                <div title="WhatsApp" style="width:40px;height:40px;border-radius:8px;background:#e6fffa;display:flex;align-items:center;justify-content:center">🟢</div>
-                <div title="Telegram" style="width:40px;height:40px;border-radius:8px;background:#eef6ff;display:flex;align-items:center;justify-content:center">✈️</div>
-                <div title="Facebook" style="width:40px;height:40px;border-radius:8px;background:#f0f9ff;display:flex;align-items:center;justify-content:center">📘</div>
-                <div title="Webchat" style="width:40px;height:40px;border-radius:8px;background:#fff7ed;display:flex;align-items:center;justify-content:center">💬</div>
-              </div>
+        <div class="hero">
+          <div class="hero-card">
+            <div class="hero-left">
+              <div class="logo-large">OD</div>
             </div>
-            <div style="margin-top:16px;max-width:420px">
-              <label style="font-size:13px;color:var(--muted)">ID</label>
-              <input id="unified-id" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee;margin-top:6px" />
-              <label style="font-size:13px;color:var(--muted);margin-top:8px;display:block">Password</label>
-              <input id="unified-password" type="password" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee;margin-top:6px" />
-              <div class="row" style="margin-top:10px">
-                <button id="btn-unified-login">Login</button>
-                <div id="unified-status" style="margin-left:8px;color:var(--muted)">-</div>
+            <div class="hero-right">
+              <h2>OrbitDesk — One place for all customer channels</h2>
+              <div class="muted">Connect email, SMS, WhatsApp, Telegram, Facebook and webchat — manage them from a single dashboard.</div>
+              <div class="icons-row">
+                <div class="icon-pill" style="background:#eef2ff">✉️</div>
+                <div class="icon-pill" style="background:#eefcf6">📩</div>
+                <div class="icon-pill" style="background:#e6fffa">🟢</div>
+                <div class="icon-pill" style="background:#eef6ff">✈️</div>
+                <div class="icon-pill" style="background:#f0f9ff">📘</div>
+                <div class="icon-pill" style="background:#fff7ed">💬</div>
+              </div>
+              <div class="login-card centered">
+                <div style="width:100%;background:linear-gradient(180deg,rgba(91,103,246,0.06),rgba(47,182,240,0.02));padding:18px;border-radius:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6)">
+                  <label class="muted">ID</label>
+                  <input id="unified-id" class="input" />
+                  <label class="muted">Password</label>
+                  <input id="unified-password" class="input" type="password" />
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+                    <button id="btn-unified-login" class="btn">Sign in</button>
+                    <div id="unified-status" class="muted">-</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
